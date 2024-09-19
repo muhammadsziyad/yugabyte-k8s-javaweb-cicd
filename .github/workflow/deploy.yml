@@ -1,0 +1,42 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        
+      - name: Set up JDK 11
+        uses: actions/setup-java@v2
+        with:
+          java-version: '11'
+          
+      - name: Build with Gradle
+        run: ./gradlew build
+        
+      - name: Build Docker image
+        run: docker build -t your-java-webapp-image:latest .
+        
+      - name: Push Docker image
+        run: |
+          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+          docker tag your-java-webapp-image:latest your-docker-registry/your-java-webapp-image:latest
+          docker push your-docker-registry/your-java-webapp-image:latest
+        
+      - name: Deploy to Kubernetes
+        uses: azure/setup-kubectl@v1
+        with:
+          version: '1.21.0'
+        
+      - name: Apply Kubernetes manifests
+        run: |
+          kubectl apply -f java-webapp-deployment.yaml
+          kubectl apply -f java-webapp-service.yaml
+          kubectl apply -f java-webapp-ingress.yaml
